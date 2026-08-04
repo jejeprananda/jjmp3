@@ -16,6 +16,7 @@ from mp3dl.config import (
 )
 from mp3dl.download import download_mp3
 from mp3dl.search import SearchResult, format_duration, search_youtube
+from mp3dl.update import run_update
 from mp3dl.ui import (
     console,
     error_panel,
@@ -103,7 +104,7 @@ def _prompt_query() -> str | None:
     try:
         return inquirer.text(
             message="Cari lagu / artis:",
-            instruction="(Enter kosong = keluar · /setting = ubah folder · typo ringan OK)",
+            instruction="(Enter kosong = keluar · /setting · /update)",
             style=PROMPT_STYLE,
             amark="✓",
             qmark="♪",
@@ -182,8 +183,8 @@ def main() -> int:
     download_dir = get_download_dir()
     show_banner(str(download_dir))
     info_panel(
-        "Ketik query pencarian, atau [bold]/setting[/] untuk ubah folder download.\n"
-        "Pilih lagu dengan panah ↑↓, atau ketik untuk memfilter daftar.",
+        "Ketik query pencarian.\n"
+        "Perintah: [bold]/setting[/] = folder download · [bold]/update[/] = cek & update versi.",
         title="Cara pakai",
         style="bright_blue",
     )
@@ -199,6 +200,15 @@ def main() -> int:
 
         if query.lower() in {"/setting", "/settings", "/config"}:
             run_settings(first_run=False)
+            continue
+
+        if query.lower() in {"/update", "/upgrade"}:
+            updated = run_update()
+            if updated:
+                console.print(
+                    "[dim]Keluar agar versi baru dipakai. Jalankan jjmp3 lagi.[/]"
+                )
+                return 0
             continue
 
         with console.status("[cyan]Mencari di YouTube…[/]", spinner="dots"):

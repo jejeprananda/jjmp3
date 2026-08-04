@@ -47,6 +47,14 @@ jjmp3
 
 ### Update
 
+Di dalam app, ketik:
+
+```text
+/update
+```
+
+Atau manual:
+
 ```bash
 pipx reinstall jjmp3
 # atau:
@@ -91,8 +99,9 @@ Alur:
 
 1. Ketik query pencarian (typo ringan biasanya tetap ketemu lewat YouTube)
 2. Ketik `/setting` untuk mengubah folder download
-3. Pilih lagu dengan panah ↑↓ (bisa ketik untuk filter daftar)
-4. File MP3 disimpan ke folder yang dikonfigurasi
+3. Ketik `/update` untuk cek & update ke versi terbaru
+4. Pilih lagu dengan panah ↑↓ (bisa ketik untuk filter daftar)
+5. File MP3 disimpan ke folder yang dikonfigurasi (ada checklist + progress bar)
 
 ## Catatan
 
