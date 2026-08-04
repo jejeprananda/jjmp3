@@ -22,13 +22,22 @@ pipx install yt-dlp
 # atau: sudo apt install yt-dlp
 ```
 
-## Install (disarankan)
+## Install (disarankan) — dengan tanya download folder
 
-Install langsung dari GitHub tanpa clone:
+```bash
+curl -fsSL https://raw.githubusercontent.com/jejeprananda/jjmp3/main/install.sh | bash
+```
+
+Installer akan menanyakan **download directory** (default `~/Music/mp3Downloader`), menyimpan config ke `~/.config/jjmp3/config.json`, lalu memasang `jjmp3` lewat pipx.
+
+### Atau pipx langsung (tanpa script)
 
 ```bash
 pipx install git+https://github.com/jejeprananda/jjmp3.git
+jjmp3
 ```
+
+Saat pertama kali dijalankan, JJMP3 akan menanyakan folder download jika belum ada config.
 
 Jalankan:
 
@@ -48,6 +57,8 @@ pipx install --force git+https://github.com/jejeprananda/jjmp3.git
 
 ```bash
 pipx uninstall jjmp3
+# opsional hapus config:
+# rm -rf ~/.config/jjmp3
 ```
 
 ## Install dari clone
@@ -55,7 +66,8 @@ pipx uninstall jjmp3
 ```bash
 git clone https://github.com/jejeprananda/jjmp3.git
 cd jjmp3
-pipx install .
+bash install.sh
+# atau: pipx install .
 ```
 
 Mode development (editable):
@@ -78,8 +90,9 @@ jjmp3
 Alur:
 
 1. Ketik query pencarian (typo ringan biasanya tetap ketemu lewat YouTube)
-2. Pilih lagu dengan panah ↑↓ (bisa ketik untuk filter daftar)
-3. File MP3 disimpan ke `~/Music/mp3Downloader`
+2. Ketik `/setting` untuk mengubah folder download
+3. Pilih lagu dengan panah ↑↓ (bisa ketik untuk filter daftar)
+4. File MP3 disimpan ke folder yang dikonfigurasi
 
 ## Catatan
 

@@ -5,18 +5,19 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-OUTPUT_DIR = Path.home() / "Music" / "mp3Downloader"
-OUTPUT_TEMPLATE = str(OUTPUT_DIR / "%(title)s.%(ext)s")
+from mp3dl.config import get_download_dir
 
 
-def ensure_output_dir() -> Path:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    return OUTPUT_DIR
+def ensure_output_dir(output_dir: Path | None = None) -> Path:
+    path = output_dir or get_download_dir()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
-def download_mp3(url: str) -> None:
-    """Extract best audio from `url` as MP3 into OUTPUT_DIR."""
-    ensure_output_dir()
+def download_mp3(url: str, output_dir: Path | None = None) -> Path:
+    """Extract best audio from `url` as MP3 into the configured download dir."""
+    path = ensure_output_dir(output_dir)
+    output_template = str(path / "%(title)s.%(ext)s")
     proc = subprocess.run(
         [
             "yt-dlp",
@@ -26,10 +27,11 @@ def download_mp3(url: str) -> None:
             "--audio-quality",
             "0",
             "-o",
-            OUTPUT_TEMPLATE,
+            output_template,
             url,
         ],
         check=False,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"Download failed (exit code {proc.returncode})")
+    return path
