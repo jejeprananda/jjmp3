@@ -19,7 +19,7 @@ from mp3dl.ui import console, error_panel, info_panel, success_panel
 
 REPO_GIT = "https://github.com/jejeprananda/jjmp3.git"
 REMOTE_PYPROJECT = (
-    "https://raw.githubusercontent.com/jejeprananda/jjmp3/main/pyproject.toml"
+    "https://raw.githubusercontent.com/jejeprananda/jjmp3/refs/heads/main/pyproject.toml"
 )
 _VERSION_RE = re.compile(r'^version\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 
@@ -32,9 +32,11 @@ def get_local_version() -> str:
 
 
 def get_remote_version(timeout: float = 15.0) -> str:
+    # Cache-bust CDN; refs/heads/main is more reliable than /main/ shortly after push.
+    url = f"{REMOTE_PYPROJECT}?t={int(__import__('time').time())}"
     req = urllib.request.Request(
-        REMOTE_PYPROJECT,
-        headers={"User-Agent": "jjmp3-updater"},
+        url,
+        headers={"User-Agent": "jjmp3-updater", "Cache-Control": "no-cache"},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
