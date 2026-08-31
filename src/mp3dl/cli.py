@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
@@ -164,6 +165,12 @@ def _prompt_again() -> bool:
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "web":
+        from mp3dl.web.app import run_web_server
+
+        run_web_server()
+        return 0
+
     missing = check_dependencies()
     if missing:
         names = ", ".join(missing)

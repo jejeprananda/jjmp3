@@ -91,6 +91,8 @@ jjmp3
 
 ## Pemakaian
 
+### CLI (downloader)
+
 ```bash
 jjmp3
 ```
@@ -102,6 +104,33 @@ Alur:
 3. Ketik `/update` untuk cek & update ke versi terbaru
 4. Pilih lagu dengan panah ↑↓ (bisa ketik untuk filter daftar)
 5. File MP3 disimpan ke folder yang dikonfigurasi (ada checklist + progress bar)
+
+### Web UI (streaming + playlist)
+
+```bash
+jjmp3 web
+```
+
+Membuka browser di `http://127.0.0.1:8765` (local-only).
+
+Fitur:
+
+- **Stream** lagu tanpa download permanen (cache sementara di `~/.cache/jjmp3`)
+- **Cari** lagu/artis, **tempel URL** YouTube, atau **import playlist** YouTube
+- **Multi-playlist** — buat, rename, hapus, drag-and-drop reorder
+- **Antrian** terpisah dari playlist, **riwayat** putar
+- **Shuffle**, repeat (off / one / all), volume, seek
+- **Download MP3** ke folder yang sama seperti CLI
+
+Config tambahan (opsional) di `~/.config/jjmp3/config.json`:
+
+```json
+{
+  "web_port": 8765,
+  "cache_dir": "~/.cache/jjmp3",
+  "cache_max_age_days": 7
+}
+```
 
 ## Catatan
 

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJMP3 Web</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="logo">JJMP3</span>
+      </div>
+      <div class="topbar-center">
+        <input id="search-input" type="search" placeholder="Cari lagu, artis, atau tempel URL YouTube…" autocomplete="off">
+      </div>
+      <div class="topbar-right">
+        <button id="btn-settings" class="icon-btn" title="Settings">⚙</button>
+      </div>
+    </header>
+
+    <div class="body">
+      <nav id="sidebar" class="sidebar">
+        <button class="nav-item active" data-view="search">♪ Cari</button>
+        <button class="nav-item" data-view="queue">▶ Antrian</button>
+        <button class="nav-item" data-view="history">🕐 Riwayat</button>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-heading">Playlist</div>
+        <div id="playlist-list"></div>
+        <button id="btn-new-playlist" class="nav-item accent">+ Playlist baru</button>
+      </nav>
+
+      <main id="main" class="main">
+        <div id="view-header" class="view-header">
+          <h1 id="view-title">Cari</h1>
+          <div id="view-actions" class="view-actions"></div>
+        </div>
+        <div id="track-list" class="track-list"></div>
+      </main>
+    </div>
+
+    <footer id="player" class="player">
+      <div class="player-track">
+        <img id="player-thumb" class="player-thumb" src="" alt="">
+        <div class="player-meta">
+          <div id="player-title" class="player-title">—</div>
+          <div id="player-artist" class="player-artist">—</div>
+        </div>
+      </div>
+      <div class="player-controls">
+        <button id="btn-shuffle" class="icon-btn" title="Shuffle">🔀</button>
+        <button id="btn-prev" class="icon-btn">⏮</button>
+        <button id="btn-play" class="play-btn">▶</button>
+        <button id="btn-next" class="icon-btn">⏭</button>
+        <button id="btn-repeat" class="icon-btn" title="Repeat">🔁</button>
+      </div>
+      <div class="player-progress">
+        <span id="time-current">0:00</span>
+        <input id="seek-bar" type="range" min="0" max="100" value="0">
+        <span id="time-total">0:00</span>
+      </div>
+      <div class="player-extra">
+        <button id="btn-download" class="icon-btn" title="Download MP3">⬇</button>
+        <input id="volume-bar" type="range" min="0" max="100" value="80">
+      </div>
+    </footer>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="modal-title"></h2>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn secondary">Batal</button>
+        <button id="modal-confirm" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <audio id="audio"></audio>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
