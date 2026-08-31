@@ -21,6 +21,7 @@ from rich.text import Text
 
 from mp3dl.config import get_download_dir
 from mp3dl.ui import console
+from mp3dl.ytdlp import ytdlp_cmd
 
 _PERCENT_RE = re.compile(r"(\d+(?:\.\d+)?)%")
 _DEST_RE = re.compile(r"Destination:\s*(.+)$")
@@ -91,8 +92,7 @@ def download_mp3(url: str, output_dir: Path | None = None) -> Path:
     saved_path: str | None = None
     extracting = False
 
-    cmd = [
-        "yt-dlp",
+    cmd = ytdlp_cmd(
         "-x",
         "--audio-format",
         "mp3",
@@ -103,7 +103,7 @@ def download_mp3(url: str, output_dir: Path | None = None) -> Path:
         "-o",
         output_template,
         url,
-    ]
+    )
 
     with Live(
         _render_download_ui(steps, progress),

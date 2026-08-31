@@ -6,6 +6,8 @@ import json
 import subprocess
 from dataclasses import dataclass
 
+from mp3dl.ytdlp import ytdlp_cmd
+
 
 @dataclass(frozen=True)
 class SearchResult:
@@ -37,7 +39,7 @@ def search_youtube(query: str, limit: int = 10) -> list[SearchResult]:
     """Search YouTube with yt-dlp and return up to `limit` results."""
     search_term = f"ytsearch{limit}:{query}"
     proc = subprocess.run(
-        ["yt-dlp", "--flat-playlist", "-J", search_term],
+        ytdlp_cmd("--flat-playlist", "-J", search_term),
         capture_output=True,
         text=True,
         check=False,

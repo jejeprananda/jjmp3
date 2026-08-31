@@ -12,10 +12,12 @@ from fastapi.responses import FileResponse, Response
 
 from mp3dl.config import get_cache_dir
 from mp3dl.web.models import Track
+from mp3dl.ytdlp import ytdlp_cmd
 
 _PERCENT_RE = re.compile(r"(\d+(?:\.\d+)?)%")
 _LOCK = threading.Lock()
 _DOWNLOADS: dict[str, dict] = {}
+_FAILURES: dict[str, str] = {}
 
 
 def cache_path(video_id: str) -> Path:
@@ -26,15 +28,24 @@ def cache_status(video_id: str) -> dict:
     path = cache_path(video_id)
     with _LOCK:
         active = _DOWNLOADS.get(video_id)
+        failure = _FAILURES.get(video_id)
     if path.is_file() and path.stat().st_size > 0:
-        return {"ready": True, "progress": 100, "cached": True}
+        return {"ready": True, "progress": 100, "cached": True, "error": None}
+    if failure:
+        return {
+            "ready": False,
+            "progress": 0,
+            "cached": False,
+            "error": failure,
+        }
     if active:
         return {
             "ready": False,
             "progress": active.get("progress", 0),
             "cached": False,
+            "error": active.get("error"),
         }
-    return {"ready": False, "progress": 0, "cached": False}
+    return {"ready": False, "progress": 0, "cached": False, "error": None}
 
 
 def ensure_cached(track: Track) -> None:
@@ -42,13 +53,13 @@ def ensure_cached(track: Track) -> None:
     if path.is_file() and path.stat().st_size > 0:
         return
     with _LOCK:
-        if track.video_id in _DOWNLOADS:
+        if track.video_id in _DOWNLOADS or track.video_id in _FAILURES:
             return
-        _DOWNLOADS[track.video_id] = {"progress": 0, "proc": None}
+        _DOWNLOADS[track.video_id] = {"progress": 0, "proc": None, "error": None}
 
     def _run() -> None:
-        cmd = [
-            "yt-dlp",
+        output_template = str(path.with_suffix(".%(ext)s"))
+        cmd = ytdlp_cmd(
             "-x",
             "--audio-format",
             "mp3",
@@ -57,9 +68,10 @@ def ensure_cached(track: Track) -> None:
             "--newline",
             "--progress",
             "-o",
-            str(path.with_suffix(".%(ext)s")),
+            output_template,
             track.url,
-        ]
+        )
+        tail: list[str] = []
         try:
             proc = subprocess.Popen(
                 cmd,
@@ -72,6 +84,9 @@ def ensure_cached(track: Track) -> None:
                 _DOWNLOADS[track.video_id]["proc"] = proc
             assert proc.stdout is not None
             for raw in proc.stdout:
+                tail.append(raw)
+                if len(tail) > 20:
+                    tail.pop(0)
                 match = _PERCENT_RE.search(raw)
                 if match:
                     with _LOCK:
@@ -79,12 +94,21 @@ def ensure_cached(track: Track) -> None:
                             float(match.group(1)), 99.0
                         )
             proc.wait()
-            if proc.returncode != 0 and not path.is_file():
+            if proc.returncode != 0 and not (path.is_file() and path.stat().st_size > 0):
+                err = "".join(tail).strip() or f"yt-dlp exit code {proc.returncode}"
+                if "ERROR:" in err:
+                    err = err[err.rfind("ERROR:") :].strip()
                 with _LOCK:
-                    _DOWNLOADS[track.video_id]["error"] = "download failed"
+                    _FAILURES[track.video_id] = err[:500]
             else:
                 with _LOCK:
                     _DOWNLOADS[track.video_id]["progress"] = 100
+        except FileNotFoundError:
+            with _LOCK:
+                _FAILURES[track.video_id] = "yt-dlp tidak ditemukan"
+        except OSError as exc:
+            with _LOCK:
+                _FAILURES[track.video_id] = str(exc)[:500]
         finally:
             with _LOCK:
                 _DOWNLOADS.pop(track.video_id, None)
@@ -106,7 +130,6 @@ def stream_file_response(path: Path, request: Request) -> Response:
             headers={"Accept-Ranges": "bytes"},
         )
 
-    # bytes=start-end
     units, _, range_spec = range_header.partition("=")
     if units.strip().lower() != "bytes":
         return FileResponse(path, media_type="audio/mpeg")
@@ -136,4 +159,11 @@ def clear_cache() -> int:
     for path in cache_dir.glob("*.mp3"):
         path.unlink(missing_ok=True)
         removed += 1
+    with _LOCK:
+        _FAILURES.clear()
     return removed
+
+
+def clear_failure(video_id: str) -> None:
+    with _LOCK:
+        _FAILURES.pop(video_id, None)

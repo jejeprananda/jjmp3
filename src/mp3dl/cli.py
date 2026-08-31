@@ -18,6 +18,7 @@ from mp3dl.config import (
 from mp3dl.download import download_mp3
 from mp3dl.search import SearchResult, format_duration, search_youtube
 from mp3dl.update import run_update
+from mp3dl.ytdlp import ytdlp_path
 from mp3dl.ui import (
     console,
     error_panel,
@@ -46,7 +47,9 @@ PROMPT_STYLE = get_style(
 
 def check_dependencies() -> list[str]:
     missing: list[str] = []
-    if shutil.which("yt-dlp") is None:
+    try:
+        ytdlp_path()
+    except FileNotFoundError:
         missing.append("yt-dlp")
     if shutil.which("ffmpeg") is None:
         missing.append("ffmpeg")

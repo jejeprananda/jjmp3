@@ -51,6 +51,9 @@ export async function ensureTrackFromSearch(result) {
 export async function pollUntilReady(trackId, onProgress) {
   for (let i = 0; i < 600; i++) {
     const status = await api.streamStatus(trackId);
+    if (status.error) {
+      throw new Error(status.error);
+    }
     if (onProgress) onProgress(status.progress || 0);
     if (status.ready) return status;
     await new Promise((r) => setTimeout(r, 500));

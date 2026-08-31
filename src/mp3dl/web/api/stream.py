@@ -9,6 +9,7 @@ from mp3dl.web.stream import (
     cache_path,
     cache_status,
     clear_cache,
+    clear_failure,
     ensure_cached,
     stream_file_response,
 )
@@ -17,10 +18,12 @@ router = APIRouter(prefix="/api", tags=["stream"])
 
 
 @router.get("/stream/{track_id}/status")
-def stream_status(track_id: int):
+def stream_status(track_id: int, retry: bool = False):
     track = get_track(track_id)
     if track is None:
         raise HTTPException(status_code=404, detail="Track not found")
+    if retry:
+        clear_failure(track.video_id)
     ensure_cached(track)
     return cache_status(track.video_id)
 

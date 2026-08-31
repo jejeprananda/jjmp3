@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from mp3dl.web.models import add_track_to_playlist, get_playlist, upsert_track
+from mp3dl.ytdlp import ytdlp_cmd
 
 router = APIRouter(prefix="/api", tags=["import"])
 
@@ -23,7 +24,7 @@ def import_youtube_playlist(body: ImportBody):
     if get_playlist(body.playlist_id) is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
     proc = subprocess.run(
-        ["yt-dlp", "--flat-playlist", "-J", body.url.strip()],
+        ytdlp_cmd("--flat-playlist", "-J", body.url.strip()),
         capture_output=True,
         text=True,
         check=False,

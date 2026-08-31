@@ -54,9 +54,14 @@ export class Player {
     this.ui.updateNowPlaying(track);
     this.ui.showToast(`Memuat: ${track.title}…`);
 
-    await pollUntilReady(track.id, (pct) => {
-      this.ui.showToast(`Buffering ${Math.round(pct)}%…`);
-    });
+    try {
+      await pollUntilReady(track.id, (pct) => {
+        this.ui.showToast(`Buffering ${Math.round(pct)}%…`);
+      });
+    } catch (err) {
+      this.ui.showToast(String(err.message || err));
+      throw err;
+    }
 
     this.audio.src = `/api/stream/${track.id}`;
     await this.audio.play();

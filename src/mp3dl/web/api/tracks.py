@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from mp3dl.web.models import track_to_dict, upsert_track
+from mp3dl.ytdlp import ytdlp_cmd
 
 router = APIRouter(prefix="/api", tags=["tracks"])
 
@@ -19,7 +20,7 @@ class TrackCreate(BaseModel):
 
 def _extract_metadata(url: str) -> dict:
     proc = subprocess.run(
-        ["yt-dlp", "-J", "--no-playlist", url.strip()],
+        ytdlp_cmd("-J", "--no-playlist", url.strip()),
         capture_output=True,
         text=True,
         check=False,
