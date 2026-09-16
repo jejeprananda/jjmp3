@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 from rich.live import Live
@@ -25,6 +26,7 @@ from mp3dl.ytdlp import ytdlp_cmd
 
 _PERCENT_RE = re.compile(r"(\d+(?:\.\d+)?)%")
 _DEST_RE = re.compile(r"Destination:\s*(.+)$")
+ProgressCallback = Callable[[float], None]
 
 
 def ensure_output_dir(output_dir: Path | None = None) -> Path:
@@ -178,4 +180,80 @@ def download_mp3(url: str, output_dir: Path | None = None) -> Path:
         progress.update(task_id, completed=100, description="Selesai")
         live.update(_render_download_ui(steps, progress))
 
-    return path
+    if saved_path:
+        return Path(saved_path)
+    # Fallback: newest mp3 in folder
+    mp3s = sorted(path.glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return mp3s[0] if mp3s else path
+
+
+def download_mp3_quiet(
+    url: str,
+    output_dir: Path | None = None,
+    *,
+    output_template: str | None = None,
+    on_progress: ProgressCallback | None = None,
+) -> Path:
+    """Download MP3 without Rich UI. Returns the saved file path."""
+    path = ensure_output_dir(output_dir)
+    template = output_template or str(path / "%(title)s.%(ext)s")
+    cmd = ytdlp_cmd(
+        "-x",
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "0",
+        "--newline",
+        "--progress",
+        "-o",
+        template,
+        url,
+    )
+    saved_path: str | None = None
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    assert proc.stdout is not None
+    tail: list[str] = []
+    for raw in proc.stdout:
+        line = raw.strip()
+        if not line:
+            continue
+        tail.append(line)
+        if len(tail) > 30:
+            tail.pop(0)
+        match = _PERCENT_RE.search(line)
+        if match and on_progress:
+            on_progress(min(float(match.group(1)), 99.0))
+        dest = _DEST_RE.search(line)
+        if dest and line.lower().endswith(".mp3"):
+            saved_path = dest.group(1).strip()
+        if "[ExtractAudio]" in line or "Destination:" in line:
+            dest = _DEST_RE.search(line)
+            if dest:
+                candidate = dest.group(1).strip()
+                if candidate.lower().endswith(".mp3"):
+                    saved_path = candidate
+    proc.wait()
+    if proc.returncode != 0:
+        err = "\n".join(tail).strip() or f"yt-dlp exit {proc.returncode}"
+        if "ERROR:" in err:
+            err = err[err.rfind("ERROR:") :].strip()
+        raise RuntimeError(err[:500])
+
+    if saved_path and Path(saved_path).is_file():
+        return Path(saved_path)
+
+    # Resolve from template stem
+    stem_path = Path(template.replace("%(ext)s", "mp3").replace(".%(ext)s", ".mp3"))
+    if "%(" not in str(stem_path) and stem_path.is_file():
+        return stem_path
+
+    mp3s = sorted(path.glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if mp3s:
+        return mp3s[0]
+    raise RuntimeError("Download finished but MP3 file not found")

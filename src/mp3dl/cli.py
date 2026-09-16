@@ -9,6 +9,8 @@ from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from InquirerPy.utils import get_style
 
+from pathlib import Path
+
 from mp3dl.config import (
     DEFAULT_DOWNLOAD_DIR,
     config_exists,
@@ -245,10 +247,36 @@ def main() -> int:
         out_dir = get_download_dir()
         info_panel(f"[bold]{selected.title}[/]\n{selected.url}", title="Mengunduh")
         try:
-            download_mp3(selected.url, out_dir)
+            saved = download_mp3(selected.url, out_dir)
         except RuntimeError as exc:
             error_panel(str(exc), title="Download gagal")
         else:
+            try:
+                from mp3dl.web.library import (
+                    download_cover,
+                    unique_filename,
+                    upsert_index_entry,
+                )
+
+                if isinstance(saved, Path) and saved.is_file() and saved.suffix.lower() == ".mp3":
+                    try:
+                        rel = saved.resolve().relative_to(out_dir.resolve()).as_posix()
+                    except ValueError:
+                        rel = unique_filename(
+                            selected.title, selected.video_id, out_dir
+                        )
+                    cover = download_cover(selected.video_id, out_dir)
+                    upsert_index_entry(
+                        video_id=selected.video_id,
+                        filename=rel,
+                        title=selected.title,
+                        channel=selected.channel,
+                        duration=selected.duration,
+                        cover=cover,
+                        root=out_dir,
+                    )
+            except Exception:  # noqa: BLE001 — index is best-effort for CLI
+                pass
             success_panel(
                 f"[bold]{selected.title}[/]\nDisimpan di [cyan]{out_dir}[/]",
                 title="Selesai",

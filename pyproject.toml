@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jjmp3"
-version = "0.3.1"
-description = "Interactive CLI and Web UI to search YouTube, stream, and download MP3 via yt-dlp"
+version = "0.4.0"
+description = "Interactive CLI and local Web music player: search YouTube, download MP3, play from disk"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -25,9 +25,11 @@ Repository = "https://github.com/jejeprananda/jjmp3"
 
 [project.scripts]
 jjmp3 = "mp3dl.cli:main"
+jjmp3-web = "mp3dl.web.launcher:main"
+jjmp3-desktop = "mp3dl.desktop:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-mp3dl = ["web/static/**/*"]
+mp3dl = ["web/static/**/*", "data/icons/*"]

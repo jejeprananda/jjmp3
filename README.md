@@ -105,30 +105,44 @@ Alur:
 4. Pilih lagu dengan panah ↑↓ (bisa ketik untuk filter daftar)
 5. File MP3 disimpan ke folder yang dikonfigurasi (ada checklist + progress bar)
 
-### Web UI (streaming + playlist)
+### Web UI (local music player)
 
 ```bash
 jjmp3 web
+# atau
+jjmp3-web
 ```
 
-Membuka browser di `http://127.0.0.1:8765` (local-only).
+Membuka browser di `http://127.0.0.1:8765` (local-only). **Tutup tab browser = server berhenti otomatis.**
 
-Fitur:
+Setelah install via `install.sh`, JJMP3 muncul di launcher OS:
 
-- **Stream** lagu tanpa download permanen (cache sementara di `~/.cache/jjmp3`)
-- **Cari** lagu/artis, **tempel URL** YouTube, atau **import playlist** YouTube
-- **Multi-playlist** — buat, rename, hapus, drag-and-drop reorder
-- **Antrian** terpisah dari playlist, **riwayat** putar
+- **Linux** — menu aplikasi (GNOME/KDE, dll.)
+- **macOS** — Spotlight / Launchpad (`Applications/JJMP3.app`)
+- **Windows** — Start Menu
+
+Pasang / hapus launcher manual:
+
+```bash
+jjmp3-desktop install
+jjmp3-desktop uninstall
+```
+
+Fitur Web UI:
+
+- **Library** — putar MP3 lokal dari folder download
+- **Search** — cari YouTube, klik untuk download (badge *Already downloaded* jika sudah ada)
+- **Explorer** — kelola file MP3 di folder download
+- **Playlist** — disimpan sebagai `playlists.json` di folder download (+ editor JSON)
+- **Settings** — ubah folder download
 - **Shuffle**, repeat (off / one / all), volume, seek
-- **Download MP3** ke folder yang sama seperti CLI
 
-Config tambahan (opsional) di `~/.config/jjmp3/config.json`:
+Config (opsional) di `~/.config/jjmp3/config.json`:
 
 ```json
 {
-  "web_port": 8765,
-  "cache_dir": "~/.cache/jjmp3",
-  "cache_max_age_days": 7
+  "download_dir": "~/Music/mp3Downloader",
+  "web_port": 8765
 }
 ```
 

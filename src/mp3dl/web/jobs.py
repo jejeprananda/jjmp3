@@ -1,0 +1,171 @@
+"""Background download jobs for the web UI."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import threading
+import uuid
+
+from mp3dl.config import get_download_dir
+from mp3dl.download import download_mp3_quiet
+from mp3dl.web.library import (
+    download_cover,
+    find_by_video_id,
+    unique_filename,
+    upsert_index_entry,
+)
+from mp3dl.ytdlp import ytdlp_cmd
+
+_LOCK = threading.Lock()
+_JOBS: dict[str, dict] = {}
+
+
+def get_job(job_id: str) -> dict | None:
+    with _LOCK:
+        job = _JOBS.get(job_id)
+        return dict(job) if job else None
+
+
+def _set_job(job_id: str, **fields) -> None:
+    with _LOCK:
+        if job_id in _JOBS:
+            _JOBS[job_id].update(fields)
+
+
+def extract_metadata(url: str) -> dict:
+    proc = subprocess.run(
+        ytdlp_cmd("-J", "--no-playlist", url),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "metadata extract failed").strip()
+        raise RuntimeError(err[:500])
+    data = json.loads(proc.stdout)
+    video_id = data.get("id") or ""
+    if not video_id:
+        raise RuntimeError("No video id in metadata")
+    return {
+        "video_id": video_id,
+        "title": data.get("title") or "(untitled)",
+        "channel": data.get("uploader") or data.get("channel") or "",
+        "duration": data.get("duration"),
+        "url": data.get("webpage_url") or url,
+    }
+
+
+def start_download(
+    *,
+    url: str | None = None,
+    video_id: str | None = None,
+    title: str | None = None,
+    channel: str | None = None,
+    duration: int | None = None,
+) -> dict:
+    if video_id and not url:
+        url = f"https://www.youtube.com/watch?v={video_id}"
+    if not url:
+        raise ValueError("url or video_id required")
+
+    existing = find_by_video_id(video_id) if video_id else None
+    if existing:
+        return {
+            "job_id": None,
+            "status": "already_downloaded",
+            "filename": existing["filename"],
+            "track": existing,
+        }
+
+    job_id = uuid.uuid4().hex[:12]
+    with _LOCK:
+        _JOBS[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "progress": 0,
+            "error": None,
+            "filename": None,
+            "video_id": video_id,
+            "title": title,
+            "channel": channel,
+            "duration": duration,
+            "url": url,
+        }
+
+    def _run() -> None:
+        root = get_download_dir()
+        try:
+            _set_job(job_id, status="resolving", progress=1)
+            meta = {
+                "video_id": video_id or "",
+                "title": title or "",
+                "channel": channel or "",
+                "duration": duration,
+                "url": url,
+            }
+            if not meta["video_id"] or not meta["title"]:
+                fetched = extract_metadata(url)
+                meta = {**meta, **{k: v for k, v in fetched.items() if v}}
+
+            if find_by_video_id(meta["video_id"], root):
+                entry = find_by_video_id(meta["video_id"], root)
+                _set_job(
+                    job_id,
+                    status="ready",
+                    progress=100,
+                    filename=entry["filename"],
+                    video_id=meta["video_id"],
+                    title=entry.get("title"),
+                    channel=entry.get("channel"),
+                )
+                return
+
+            filename = unique_filename(meta["title"], meta["video_id"], root)
+            out_path = root / filename
+            # yt-dlp template without extension; we force mp3
+            template = str(out_path.with_suffix(".%(ext)s"))
+
+            def on_progress(pct: float) -> None:
+                _set_job(job_id, status="downloading", progress=min(pct, 99.0))
+
+            _set_job(
+                job_id,
+                status="downloading",
+                progress=5,
+                video_id=meta["video_id"],
+                title=meta["title"],
+                channel=meta["channel"],
+                duration=meta["duration"],
+            )
+            saved = download_mp3_quiet(meta["url"], root, output_template=template, on_progress=on_progress)
+            # Normalize relative filename if yt-dlp picked a slightly different name
+            try:
+                rel = saved.resolve().relative_to(root.resolve()).as_posix()
+            except ValueError:
+                rel = filename
+            cover = download_cover(meta["video_id"], root)
+            entry = upsert_index_entry(
+                video_id=meta["video_id"],
+                filename=rel,
+                title=meta["title"],
+                channel=meta["channel"],
+                duration=meta["duration"],
+                cover=cover,
+                root=root,
+            )
+            _set_job(
+                job_id,
+                status="ready",
+                progress=100,
+                filename=rel,
+                video_id=meta["video_id"],
+                title=entry.get("title"),
+                channel=entry.get("channel"),
+                cover=cover,
+            )
+        except Exception as exc:  # noqa: BLE001 — surface to client
+            _set_job(job_id, status="error", error=str(exc)[:500], progress=0)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return get_job(job_id) or {"job_id": job_id, "status": "queued"}

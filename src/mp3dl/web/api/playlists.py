@@ -1,26 +1,13 @@
-"""Playlist API."""
+"""Playlist API backed by playlists.json in the download folder."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from mp3dl.web.models import (
-    add_track_to_playlist,
-    create_playlist,
-    delete_playlist,
-    get_playlist,
-    get_track,
-    list_playlist_tracks,
-    list_playlists,
-    playlist_to_dict,
-    remove_track_from_playlist,
-    rename_playlist,
-    reorder_playlist_tracks,
-    track_to_dict,
-)
+from mp3dl.web import playlists_store
 
-router = APIRouter(prefix="/api", tags=["playlists"])
+router = APIRouter(prefix="/api/playlists", tags=["playlists"])
 
 
 class PlaylistCreate(BaseModel):
@@ -32,72 +19,64 @@ class PlaylistRename(BaseModel):
 
 
 class TrackAdd(BaseModel):
-    track_id: int
+    filename: str
 
 
 class ReorderBody(BaseModel):
-    track_ids: list[int]
+    tracks: list[str]
 
 
-@router.get("/playlists")
-def get_playlists():
-    return [playlist_to_dict(p) for p in list_playlists()]
+@router.get("")
+def list_all():
+    return playlists_store.list_playlists()
 
 
-@router.post("/playlists")
-def post_playlist(body: PlaylistCreate):
-    name = body.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Name required")
-    pid = create_playlist(name)
-    playlist = get_playlist(pid)
-    assert playlist is not None
-    return playlist_to_dict(playlist)
+@router.get("/document")
+def get_document():
+    return playlists_store.load_playlists()
 
 
-@router.put("/playlists/{playlist_id}")
-def put_playlist(playlist_id: int, body: PlaylistRename):
-    if not rename_playlist(playlist_id, body.name):
+@router.put("/document")
+def put_document(body: dict):
+    return playlists_store.save_playlists(body)
+
+
+@router.post("")
+def create(body: PlaylistCreate):
+    return playlists_store.create_playlist(body.name)
+
+
+@router.get("/{playlist_id}")
+def get_one(playlist_id: str):
+    pl = playlists_store.get_playlist(playlist_id)
+    if pl is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    playlist = get_playlist(playlist_id)
-    assert playlist is not None
-    return playlist_to_dict(playlist)
+    return pl
 
 
-@router.delete("/playlists/{playlist_id}")
-def delete_playlist_route(playlist_id: int):
-    if not delete_playlist(playlist_id):
-        raise HTTPException(status_code=404, detail="Playlist not found")
+@router.put("/{playlist_id}")
+def rename(playlist_id: str, body: PlaylistRename):
+    return playlists_store.rename_playlist(playlist_id, body.name)
+
+
+@router.delete("/{playlist_id}")
+def remove(playlist_id: str):
+    playlists_store.delete_playlist(playlist_id)
     return {"ok": True}
 
 
-@router.get("/playlists/{playlist_id}/tracks")
-def get_playlist_tracks(playlist_id: int):
-    if get_playlist(playlist_id) is None:
-        raise HTTPException(status_code=404, detail="Playlist not found")
-    return [track_to_dict(t) for t in list_playlist_tracks(playlist_id)]
+@router.post("/{playlist_id}/tracks")
+def add_track(playlist_id: str, body: TrackAdd):
+    if not body.filename.strip():
+        raise HTTPException(status_code=400, detail="filename required")
+    return playlists_store.add_track_to_playlist(playlist_id, body.filename.strip())
 
 
-@router.post("/playlists/{playlist_id}/tracks")
-def post_playlist_track(playlist_id: int, body: TrackAdd):
-    if get_playlist(playlist_id) is None:
-        raise HTTPException(status_code=404, detail="Playlist not found")
-    if get_track(body.track_id) is None:
-        raise HTTPException(status_code=404, detail="Track not found")
-    add_track_to_playlist(playlist_id, body.track_id)
-    return {"ok": True}
+@router.delete("/{playlist_id}/tracks")
+def remove_track(playlist_id: str, filename: str = Query(...)):
+    return playlists_store.remove_track_from_playlist(playlist_id, filename)
 
 
-@router.delete("/playlists/{playlist_id}/tracks/{track_id}")
-def delete_playlist_track(playlist_id: int, track_id: int):
-    if not remove_track_from_playlist(playlist_id, track_id):
-        raise HTTPException(status_code=404, detail="Track not in playlist")
-    return {"ok": True}
-
-
-@router.put("/playlists/{playlist_id}/tracks/reorder")
-def reorder_playlist(playlist_id: int, body: ReorderBody):
-    if get_playlist(playlist_id) is None:
-        raise HTTPException(status_code=404, detail="Playlist not found")
-    reorder_playlist_tracks(playlist_id, body.track_ids)
-    return {"ok": True}
+@router.put("/{playlist_id}/tracks")
+def reorder(playlist_id: str, body: ReorderBody):
+    return playlists_store.set_playlist_tracks(playlist_id, body.tracks)

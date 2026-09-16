@@ -59,5 +59,16 @@ echo "Menginstall jjmp3 dari GitHub..."
 pipx install --force "$REPO_URL"
 
 echo
-echo "Selesai. Jalankan: jjmp3"
-echo "Ubah folder nanti dengan mengetik /setting di dalam app."
+echo "Memasang launcher di menu aplikasi OS..."
+if command -v jjmp3-desktop >/dev/null 2>&1; then
+  jjmp3-desktop install || true
+else
+  echo "  (lewati — jjmp3-desktop belum di PATH; jalankan: jjmp3-desktop install)"
+fi
+
+echo
+echo "Selesai."
+echo "  Web UI (menu app / Spotlight / Start): cari \"JJMP3\""
+echo "  CLI download: jjmp3"
+echo "  Tutup tab browser = app berhenti otomatis"
+echo "Ubah folder download lewat Settings di Web UI atau /setting di CLI."

@@ -1,59 +1,72 @@
-"""Tests for SQLite models."""
+"""Unit tests for library index and playlist JSON store."""
 
 from __future__ import annotations
 
-from mp3dl.web.models import (
-    add_to_queue,
-    add_track_to_playlist,
+import pytest
+from fastapi import HTTPException
+
+from mp3dl.web.library import (
+    find_by_video_id,
+    scan_library,
+    unique_filename,
+    upsert_index_entry,
+)
+from mp3dl.web.playlists_store import (
     create_playlist,
-    get_track,
-    list_playlists,
-    list_queue,
-    log_history,
-    upsert_track,
+    load_playlists,
+    prune_filename_from_all,
+    save_playlists,
+    set_playlist_tracks,
+    validate_playlists_doc,
 )
 
 
-def test_create_and_list_playlist(db):
-    create_playlist("Favorit")
-    playlists = list_playlists()
-    assert len(playlists) == 1
-    assert playlists[0].name == "Favorit"
-
-
-def test_upsert_track_dedup(db):
-    id1 = upsert_track(
-        "abc123",
-        "Song",
-        "Artist",
-        180,
-        "https://youtube.com/watch?v=abc123",
-        None,
+def test_index_and_scan(download_dir):
+    (download_dir / "Song.mp3").write_bytes(b"abc")
+    (download_dir / "manual.mp3").write_bytes(b"def")
+    upsert_index_entry(
+        video_id="v1",
+        filename="Song.mp3",
+        title="Song",
+        channel="A",
+        duration=30,
+        root=download_dir,
     )
-    id2 = upsert_track(
-        "abc123",
-        "Song Updated",
-        "Artist",
-        180,
-        "https://youtube.com/watch?v=abc123",
-        None,
-    )
-    assert id1 == id2
-    assert get_track(id1).title == "Song Updated"
+    assert find_by_video_id("v1", download_dir)["filename"] == "Song.mp3"
+    tracks = scan_library(download_dir)
+    names = {t["filename"] for t in tracks}
+    assert names == {"Song.mp3", "manual.mp3"}
+    manual = next(t for t in tracks if t["filename"] == "manual.mp3")
+    assert manual["video_id"] is None
 
 
-def test_playlist_and_queue(db):
-    pid = create_playlist("Work")
-    tid = upsert_track(
-        "vid1",
-        "Track",
-        "Ch",
-        120,
-        "https://youtube.com/watch?v=vid1",
-        None,
+def test_unique_filename_collision(download_dir):
+    (download_dir / "Hit.mp3").write_bytes(b"x")
+    upsert_index_entry(
+        video_id="old",
+        filename="Hit.mp3",
+        title="Hit",
+        root=download_dir,
     )
-    add_track_to_playlist(pid, tid)
-    qid = add_to_queue(tid)
-    assert qid > 0
-    assert len(list_queue()) == 1
-    log_history(tid)
+    assert unique_filename("Hit", "new", download_dir) == "Hit [new].mp3"
+    assert unique_filename("Hit", "old", download_dir) == "Hit.mp3"
+
+
+def test_playlists_validate_and_prune(download_dir):
+    pl = create_playlist("One", download_dir)
+    set_playlist_tracks(pl["id"], ["a.mp3", "b.mp3"], download_dir)
+    assert prune_filename_from_all("a.mp3", download_dir) == 1
+    doc = load_playlists(download_dir)
+    assert doc["playlists"][0]["tracks"] == ["b.mp3"]
+
+    with pytest.raises(HTTPException):
+        validate_playlists_doc({"version": 2, "playlists": []})
+
+    with pytest.raises(HTTPException):
+        save_playlists(
+            {
+                "version": 1,
+                "playlists": [{"id": "x!", "name": "Bad", "tracks": []}],
+            },
+            download_dir,
+        )
