@@ -2,7 +2,7 @@
 
 **Current version: `0.4.1`**
 
-JJMP3 is an **open-source** app to search YouTube, download audio as MP3, and play it from a local folder — via a **CLI** or a **Web UI** styled like a music player.
+JJMP3 is an **open-source** app to search YouTube, download audio as MP3, and play it from a local folder — via a **CLI** or a **Web UI** styled like a music player. It is made to be music listener that cant or wont afford an adfree music platform.
 
 **Repo:** https://github.com/jejeprananda/jjmp3  
 **License:** [MIT](LICENSE)
