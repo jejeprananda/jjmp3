@@ -20,8 +20,13 @@ LOGO = r"""
 
 
 def show_banner(output_dir: str) -> None:
+    from mp3dl.update import get_local_version
+
     logo = Text(LOGO, style="bold cyan")
-    subtitle = Text("YouTube → MP3  ·  powered by yt-dlp", style="dim")
+    subtitle = Text(
+        f"YouTube → MP3  ·  powered by yt-dlp  ·  v{get_local_version()}",
+        style="dim",
+    )
     body = Group(Align.center(logo), Align.center(subtitle))
     console.print(
         Panel(

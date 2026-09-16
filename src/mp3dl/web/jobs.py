@@ -12,6 +12,7 @@ from mp3dl.download import download_mp3_quiet
 from mp3dl.web.library import (
     download_cover,
     find_by_video_id,
+    find_by_title,
     unique_filename,
     upsert_index_entry,
 )
@@ -19,6 +20,44 @@ from mp3dl.ytdlp import ytdlp_cmd
 
 _LOCK = threading.Lock()
 _JOBS: dict[str, dict] = {}
+
+
+def _normalize_title(value: str | None) -> str:
+    if not value:
+        return ""
+    lowered = str(value).strip().lower()
+    # Same normalization as web.library (roughly), for job-level dedup.
+    lowered = __import__("re").sub(r"[^a-z0-9]+", " ", lowered)
+    return " ".join(lowered.split())
+
+
+def _active_jobs() -> list[dict]:
+    with _LOCK:
+        return [dict(j) for j in _JOBS.values()]
+
+
+def _active_job_by_video_id(video_id: str) -> dict | None:
+    if not video_id:
+        return None
+    for job in _active_jobs():
+        if (
+            job.get("video_id") == video_id
+            and job.get("status") in {"queued", "resolving", "downloading"}
+        ):
+            return job
+    return None
+
+
+def _active_job_by_title(title: str) -> dict | None:
+    norm = _normalize_title(title)
+    if not norm:
+        return None
+    for job in _active_jobs():
+        if job.get("status") not in {"queued", "resolving", "downloading"}:
+            continue
+        if _normalize_title(job.get("title")) == norm:
+            return job
+    return None
 
 
 def get_job(job_id: str) -> dict | None:
@@ -69,6 +108,7 @@ def start_download(
     if not url:
         raise ValueError("url or video_id required")
 
+    # 1) Already-downloaded by video_id (fast path)
     existing = find_by_video_id(video_id) if video_id else None
     if existing:
         return {
@@ -77,6 +117,27 @@ def start_download(
             "filename": existing["filename"],
             "track": existing,
         }
+
+    # 2) Already-downloaded by title (user-facing dedup to prevent duplicates)
+    if title:
+        existing_by_title = find_by_title(title)
+        if existing_by_title:
+            return {
+                "job_id": None,
+                "status": "already_downloaded",
+                "filename": existing_by_title["filename"],
+                "track": existing_by_title,
+            }
+
+    # 3) Avoid concurrent duplicate downloads (same video_id or same title)
+    if video_id:
+        active = _active_job_by_video_id(video_id)
+        if active:
+            return active
+    if title:
+        active = _active_job_by_title(title)
+        if active:
+            return active
 
     job_id = uuid.uuid4().hex[:12]
     with _LOCK:
@@ -120,6 +181,21 @@ def start_download(
                     channel=entry.get("channel"),
                 )
                 return
+
+            # Title-based dedup (prevents duplicates even if video_id differs)
+            if meta.get("title"):
+                by_title = find_by_title(meta["title"], root)
+                if by_title:
+                    _set_job(
+                        job_id,
+                        status="ready",
+                        progress=100,
+                        filename=by_title["filename"],
+                        video_id=meta["video_id"],
+                        title=by_title.get("title"),
+                        channel=by_title.get("channel"),
+                    )
+                    return
 
             filename = unique_filename(meta["title"], meta["video_id"], root)
             out_path = root / filename

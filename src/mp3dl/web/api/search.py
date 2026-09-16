@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from mp3dl.search import search_youtube
-from mp3dl.web.library import find_by_video_id
+from mp3dl.web.library import find_by_title, find_by_video_id
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -21,7 +21,9 @@ def search(q: str = Query(default="")):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     payload = []
     for r in results:
-        existing = find_by_video_id(r.video_id)
+        existing = find_by_video_id(r.video_id) if r.video_id else None
+        if not existing:
+            existing = find_by_title(r.title)
         item = {
             "title": r.title,
             "channel": r.channel,

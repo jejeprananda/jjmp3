@@ -51,6 +51,32 @@ def test_search_annotates_downloaded(client, download_dir, monkeypatch):
     assert data[1]["downloaded"] is False
 
 
+def test_search_annotates_downloaded_by_title(client, download_dir, monkeypatch):
+    (download_dir / "Hello.mp3").write_bytes(b"ID3fake")
+    upsert_index_entry(
+        video_id="abc123",
+        filename="Hello.mp3",
+        title="Hello",
+        channel="Artist",
+        duration=120,
+        root=download_dir,
+    )
+
+    from mp3dl.search import SearchResult
+
+    monkeypatch.setattr(
+        "mp3dl.web.api.search.search_youtube",
+        lambda q: [
+            SearchResult("Hello", "Artist", 120, "different_vid", "https://youtu.be/different_vid"),
+        ],
+    )
+    r = client.get("/api/search?q=hello")
+    assert r.status_code == 200
+    data = r.json()
+    assert data[0]["downloaded"] is True
+    assert data[0]["filename"] == "Hello.mp3"
+
+
 def test_library_scan_and_range(client, download_dir):
     mp3 = download_dir / "Track A.mp3"
     mp3.write_bytes(b"0123456789ABCDEF")

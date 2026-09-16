@@ -136,8 +136,13 @@ body {
 .brand-sub {
   font-size: 0.72rem;
   color: var(--muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.brand-sub #app-version {
+  font-family: var(--font-mono);
+  color: var(--amber);
+  letter-spacing: 0;
 }
 
 .nav,

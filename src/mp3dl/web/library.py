@@ -74,6 +74,37 @@ def find_by_filename(filename: str, root: Path | None = None) -> dict | None:
     return None
 
 
+_NORM_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _normalize_title(value: str | None) -> str:
+    """Normalize titles for dedup comparisons (case/spacing/punctuation agnostic)."""
+    if not value:
+        return ""
+    lowered = str(value).strip().lower()
+    lowered = _NORM_RE.sub(" ", lowered)
+    return " ".join(lowered.split())
+
+
+def find_by_title(title: str, root: Path | None = None) -> dict | None:
+    """Find an already-downloaded track by matching normalized title."""
+    norm = _normalize_title(title)
+    if not norm:
+        return None
+
+    root = root or get_download_dir()
+    for track in load_index(root).get("tracks", []):
+        if not isinstance(track, dict):
+            continue
+        track_title = track.get("title") or ""
+        if _normalize_title(track_title) != norm:
+            continue
+        filename = track.get("filename")
+        if filename and root.joinpath(filename).is_file():
+            return track
+    return None
+
+
 def upsert_index_entry(
     *,
     video_id: str,

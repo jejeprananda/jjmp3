@@ -173,6 +173,14 @@ async function refreshSettings() {
   const dir = state.settings.download_dir || "";
   els.pathChip.textContent = dir;
   els.pathChip.title = dir;
+  const ver = state.settings.version;
+  const verEl = document.getElementById("app-version");
+  if (verEl && ver) {
+    verEl.textContent = `v${ver}`;
+  }
+  if (ver) {
+    document.title = `JJMP3 v${ver} — Local Deck`;
+  }
 }
 
 async function refreshLibrary() {
@@ -582,6 +590,12 @@ async function onSearchClick(item) {
     await playLocal(track, state.library);
     return;
   }
+  // Prevent multiple concurrent downloads from the same row click.
+  const active = state.downloadJobs[item.video_id];
+  if (active && active.status !== "ready") {
+    ui.showToast("Sedang download…");
+    return;
+  }
   try {
     const job = await api.startDownload({
       url: item.url,
@@ -605,8 +619,13 @@ async function onSearchClick(item) {
     state.downloadJobs[item.video_id] = job;
     renderSearchResults(state.searchResults);
     ui.showToast(`Downloading: ${item.title}`);
+    // Throttle UI updates to reduce progress flicker.
+    let lastUi = 0;
     const done = await pollDownload(job.job_id, (status) => {
       state.downloadJobs[item.video_id] = status;
+      const now = Date.now();
+      if (now - lastUi < 450) return;
+      lastUi = now;
       renderSearchResults(state.searchResults);
     });
     item.downloaded = true;

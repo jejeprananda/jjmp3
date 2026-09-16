@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jjmp3"
-version = "0.4.0"
+version = "0.4.1"
 description = "Interactive CLI and local Web music player: search YouTube, download MP3, play from disk"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
     "rich>=13.0",
