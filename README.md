@@ -1,82 +1,82 @@
 # JJMP3
 
-**Versi saat ini: `0.4.1`**
+**Current version: `0.4.1`**
 
-JJMP3 adalah aplikasi **open source** untuk mencari lagu di YouTube, mengunduh audio sebagai MP3, lalu memutarnya dari folder lokal — lewat **CLI** atau **Web UI** bergaya music player.
+JJMP3 is an **open-source** app to search YouTube, download audio as MP3, and play it from a local folder — via a **CLI** or a **Web UI** styled like a music player.
 
 **Repo:** https://github.com/jejeprananda/jjmp3  
-**Lisensi:** [MIT](LICENSE)
+**License:** [MIT](LICENSE)
 
 ---
 
-## Apa gunanya?
+## What is it for?
 
-| Mode | Kegunaan |
-|------|----------|
-| **CLI** (`jjmp3`) | Cari YouTube → pilih → download MP3 ke folder yang kamu tentukan |
-| **Web UI** (`jjmp3-web`) | Library lokal, search & download, explorer file, playlist JSON, player dengan shuffle/repeat |
-| **Desktop launcher** | Muncul di pencarian aplikasi OS (Linux / macOS / Windows) |
+| Mode | Purpose |
+|------|---------|
+| **CLI** (`jjmp3`) | Search YouTube → pick a result → download MP3 to your folder |
+| **Web UI** (`jjmp3-web`) | Local library, search & download, file explorer, JSON playlists, player with shuffle/repeat |
+| **Desktop launcher** | Shows up in OS app search (Linux / macOS / Windows) |
 
-Web UI **bukan streaming YouTube**. Player hanya memutar file MP3 yang sudah ada di folder download. Search dipakai untuk **mendownload**; jika lagu sudah ada (video_id atau judul sama), muncul badge *Already downloaded* dan download dicegah.
+The Web UI does **not** stream YouTube live. The player only plays MP3 files already in your download folder. Search is for **downloading**; if a track already exists (same `video_id` or matching title), you get an *Already downloaded* badge and a new download is blocked.
 
-Tutup tab browser = server Web UI berhenti otomatis.
+Close the browser tab = the Web UI server stops automatically.
 
 ---
 
-## Bahasa & stack
+## Languages & stack
 
-| Layer | Teknologi |
-|-------|-----------|
-| Bahasa utama | **Python ≥ 3.10** |
+| Layer | Tech |
+|-------|------|
+| Main language | **Python ≥ 3.10** |
 | CLI | Rich, InquirerPy |
 | Web server | FastAPI + Uvicorn |
 | Frontend | HTML / CSS / Vanilla JS (ES modules), GSAP (vendored) |
-| Download audio | **yt-dlp** + **ffmpeg** |
-| Data | JSON di folder download (`library.json`, `playlists.json`) + config di `~/.config/jjmp3/` |
+| Audio download | **yt-dlp** + **ffmpeg** |
+| Data | JSON in the download folder (`library.json`, `playlists.json`) + config in `~/.config/jjmp3/` |
 
-Tidak ada React/Vite — frontend di-package bersama Python agar `pipx install` tetap sederhana.
+No React/Vite — the frontend ships with the Python package so `pipx install` stays simple.
 
 ---
 
-## Prasyarat
+## Prerequisites
 
 - Python 3.10+
-- [`pipx`](https://pipx.pypa.io/) (disarankan untuk install global)
-- `ffmpeg` di PATH
-- `yt-dlp` (biasanya ikut terpasang sebagai dependency Python; pastikan juga bisa di PATH jika CLI standalone)
+- [`pipx`](https://pipx.pypa.io/) (recommended for a global install)
+- `ffmpeg` on PATH
+- `yt-dlp` (usually installed as a Python dependency; keep it on PATH if you use a standalone binary)
 
 ```bash
 # Ubuntu / Debian
 sudo apt install ffmpeg pipx
 pipx ensurepath
-# buka terminal baru setelah ensurepath
+# open a new terminal after ensurepath
 ```
 
 ---
 
 ## Install
 
-### Cara cepat (disarankan)
+### Quick install (recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jejeprananda/jjmp3/main/install.sh | bash
 ```
 
-Installer akan:
+The installer will:
 
-1. Menanyakan folder download (default `~/Music/mp3Downloader`)
-2. Menyimpan config ke `~/.config/jjmp3/config.json`
-3. Memasang `jjmp3` lewat pipx
-4. Memasang launcher OS (`jjmp3-desktop install`)
+1. Ask for a download folder (default `~/Music/mp3Downloader`)
+2. Save config to `~/.config/jjmp3/config.json`
+3. Install `jjmp3` via pipx
+4. Register an OS launcher (`jjmp3-desktop install`)
 
-### pipx langsung
+### pipx directly
 
 ```bash
 pipx install git+https://github.com/jejeprananda/jjmp3.git
-jjmp3-desktop install   # opsional: daftar di menu aplikasi
+jjmp3-desktop install   # optional: add to the app menu
 ```
 
-### Dari clone (development)
+### From a clone (development)
 
 ```bash
 git clone https://github.com/jejeprananda/jjmp3.git
@@ -87,23 +87,23 @@ pip install -e ".[dev]"
 jjmp3-desktop install
 ```
 
-Atau: `bash install.sh` / `pipx install .`
+Or: `bash install.sh` / `pipx install .`
 
-### Perintah yang tersedia setelah install
+### Commands after install
 
-| Perintah | Fungsi |
-|----------|--------|
-| `jjmp3` | CLI interaktif (download) |
-| `jjmp3 web` | Sama dengan `jjmp3-web` |
-| `jjmp3-web` | Jalankan Web UI + buka browser |
-| `jjmp3-desktop install` | Pasang launcher ke menu OS |
-| `jjmp3-desktop uninstall` | Hapus launcher |
+| Command | Purpose |
+|---------|---------|
+| `jjmp3` | Interactive CLI (download) |
+| `jjmp3 web` | Same as `jjmp3-web` |
+| `jjmp3-web` | Start Web UI and open the browser |
+| `jjmp3-desktop install` | Install the OS launcher |
+| `jjmp3-desktop uninstall` | Remove the launcher |
 
-Cari **"JJMP3"** di menu aplikasi Linux, Spotlight/Launchpad macOS, atau Start Menu Windows.
+Search for **"JJMP3"** in the Linux app menu, macOS Spotlight/Launchpad, or Windows Start Menu.
 
 ---
 
-## Cara pakai
+## Usage
 
 ### CLI
 
@@ -111,45 +111,45 @@ Cari **"JJMP3"** di menu aplikasi Linux, Spotlight/Launchpad macOS, atau Start M
 jjmp3
 ```
 
-1. Ketik query pencarian (atau `/setting` / `/update`)
-2. Pilih hasil dengan panah ↑↓ (bisa ketik untuk filter)
-3. MP3 tersimpan di folder download (checklist + progress)
+1. Type a search query (or `/setting` / `/update`)
+2. Pick a result with ↑↓ (type to filter)
+3. The MP3 is saved to your download folder (checklist + progress)
 
-Perintah khusus di prompt:
+Special prompts:
 
-| Input | Aksi |
-|-------|------|
-| `/setting` | Ubah folder download |
-| `/update` | Cek & install update dari GitHub via pipx |
-| Enter kosong | Keluar |
+| Input | Action |
+|-------|--------|
+| `/setting` | Change download folder |
+| `/update` | Check & install update from GitHub via pipx |
+| Empty Enter | Quit |
 
 ### Web UI
 
 ```bash
 jjmp3-web
-# atau
+# or
 jjmp3 web
 ```
 
-Buka `http://127.0.0.1:8765` (hanya localhost).
+Opens `http://127.0.0.1:8765` (localhost only).
 
-| View | Fungsi |
-|------|--------|
-| **Library** | Daftar & putar semua MP3 di folder download |
-| **Search** | Cari YouTube → klik = download. Sudah ada → play lokal |
-| **Explorer** | File browser folder yang sama (hapus file, tambah ke playlist) |
-| **Playlists** | Buat / rename / hapus playlist; editor visual + JSON |
-| **Settings** | Folder download, cek update, lihat versi |
+| View | Purpose |
+|------|---------|
+| **Library** | List and play all MP3s in the download folder |
+| **Search** | Search YouTube → click to download. Already present → play local file |
+| **Explorer** | Browse the same folder (delete files, add to playlists) |
+| **Playlists** | Create / rename / delete playlists; visual + JSON editor |
+| **Settings** | Download folder, check for updates, see version |
 
-Kontrol player: play/pause, prev/next, shuffle, repeat (off/one/all), seek, volume. Shortcut: `Space`, `←` / `→` (saat tidak sedang mengetik).
+Player controls: play/pause, prev/next, shuffle, repeat (off/one/all), seek, volume. Shortcuts: `Space`, `←` / `→` (when not typing).
 
-**Lifecycle:** tab browser mengirim heartbeat; tutup tab terakhir → proses server berhenti.
+**Lifecycle:** the browser tab sends heartbeats; closing the last tab stops the server process.
 
 ---
 
-## Settings & konfigurasi
+## Settings & configuration
 
-### File config
+### Config file
 
 `~/.config/jjmp3/config.json`
 
@@ -162,29 +162,29 @@ Kontrol player: play/pause, prev/next, shuffle, repeat (off/one/all), seek, volu
 }
 ```
 
-| Key | Default | Keterangan |
-|-----|---------|------------|
-| `download_dir` | `~/Music/mp3Downloader` | Satu-satunya folder library / explorer / playlist |
-| `web_port` | `8765` | Port Web UI (localhost) |
-| `cache_dir` | `~/.cache/jjmp3` | Legacy; stream-cache tidak lagi dipakai Web UI |
+| Key | Default | Notes |
+|-----|---------|-------|
+| `download_dir` | `~/Music/mp3Downloader` | Single folder for library / explorer / playlists |
+| `web_port` | `8765` | Web UI port (localhost) |
+| `cache_dir` | `~/.cache/jjmp3` | Legacy; stream cache is no longer used by the Web UI |
 | `cache_max_age_days` | `7` | Legacy |
 
-Ubah `download_dir` lewat:
+Change `download_dir` via:
 
 - Web UI → **Settings** → Apply
 - CLI → `/setting`
 
-### Isi folder download
+### Download folder layout
 
 ```
 {download_dir}/
-  Lagu.mp3
-  covers/{video_id}.jpg     # thumbnail (opsional)
-  library.json              # indeks video_id ↔ file (otomatis)
-  playlists.json            # playlist user
+  Song.mp3
+  covers/{video_id}.jpg     # thumbnail (optional)
+  library.json              # video_id ↔ file index (automatic)
+  playlists.json            # user playlists
 ```
 
-`playlists.json` contoh:
+Example `playlists.json`:
 
 ```json
 {
@@ -199,7 +199,7 @@ Ubah `download_dir` lewat:
 }
 ```
 
-Track diacu dengan **nama file relatif**, bukan YouTube ID. Editor di Web UI bisa edit visual atau JSON mentah.
+Tracks are referenced by **relative filenames**, not YouTube IDs. The Web UI editor supports visual edits or raw JSON.
 
 ---
 
@@ -216,24 +216,24 @@ pipx install --force git+https://github.com/jejeprananda/jjmp3.git
 jjmp3-desktop install
 ```
 
-Setelah update, **restart** Web UI agar proses memakai kode baru.
+After updating, **restart** the Web UI so the process loads the new code.
 
 ### Uninstall
 
 ```bash
 jjmp3-desktop uninstall
 pipx uninstall jjmp3
-# opsional:
+# optional:
 # rm -rf ~/.config/jjmp3
 ```
 
 ---
 
-## Development & kontribusi
+## Development & contributing
 
-JJMP3 **open source** — kontribusi welcome.
+JJMP3 is **open source** — contributions are welcome.
 
-### Setup lokal
+### Local setup
 
 ```bash
 git clone https://github.com/jejeprananda/jjmp3.git
@@ -244,37 +244,37 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-### Struktur singkat
+### Layout (short)
 
 ```
 src/mp3dl/
   cli.py              # CLI entry
   download.py         # yt-dlp → MP3
   search.py           # ytsearch
-  update.py           # cek/install update GitHub
-  desktop.py          # launcher OS
+  update.py           # check/install updates from GitHub
+  desktop.py          # OS launcher
   config.py           # ~/.config/jjmp3
   web/
     app.py            # FastAPI
     launcher.py       # jjmp3-web + lifecycle shutdown
-    library.py        # scan folder, index, Range serve
+    library.py        # folder scan, index, Range serve
     playlists_store.py
-    jobs.py           # download background
+    jobs.py           # background downloads
     static/           # Web UI
 tests/
 ```
 
-### Ide kontribusi
+### Contribution ideas
 
-- Bugfix & regression tests
-- UX Web UI / aksesibilitas
-- Metadata ID3 / cover art lebih baik
-- Packaging (AppImage, Flatpak, dll.)
-- Dokumentasi & terjemahan
+- Bug fixes & regression tests
+- Web UI UX / accessibility
+- Better ID3 metadata / cover art
+- Packaging (AppImage, Flatpak, etc.)
+- Docs & translations
 
-Alur: fork → branch → PR ke `main`. Jelaskan *mengapa* perubahan itu berguna. Jaga agar CLI dan Web UI tetap bisa diinstall lewat pipx tanpa build frontend terpisah.
+Flow: fork → branch → PR to `main`. Explain *why* the change helps. Keep CLI and Web UI installable via pipx without a separate frontend build.
 
-### Tes
+### Tests
 
 ```bash
 pytest -q
@@ -282,20 +282,20 @@ pytest -q
 
 ---
 
-## Catatan hukum
+## Legal note
 
-Gunakan hanya untuk konten yang boleh Anda unduh (hak cipta / ToS YouTube). JJMP3 adalah wrapper pribadi di atas [yt-dlp](https://github.com/yt-dlp/yt-dlp).
-
----
-
-## Changelog ringkas
-
-| Versi | Catatan |
-|-------|---------|
-| **0.4.1** | Dedup download by title, progress UI lebih stabil, README lengkap, versi di UI |
-| **0.4.0** | Local library player, playlist JSON, OS launcher, icon, Settings → Updates |
-| **0.3.x** | Web streaming + SQLite playlists (diganti di 0.4) |
+Only download content you are allowed to (copyright / YouTube ToS). JJMP3 is a personal wrapper around [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 
 ---
 
-Dibuat dengan ☕ · MIT License · [Issues](https://github.com/jejeprananda/jjmp3/issues)
+## Changelog (short)
+
+| Version | Notes |
+|---------|-------|
+| **0.4.1** | Title-based download dedup, smoother progress UI, full README, version in the app |
+| **0.4.0** | Local library player, JSON playlists, OS launcher, icon, Settings → Updates |
+| **0.3.x** | Web streaming + SQLite playlists (replaced in 0.4) |
+
+---
+
+Made with ☕ · MIT License · [Issues](https://github.com/jejeprananda/jjmp3/issues)
