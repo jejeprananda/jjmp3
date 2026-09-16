@@ -12,6 +12,8 @@ import textwrap
 from importlib.resources import files
 from pathlib import Path
 
+_ICON_SIZES = (16, 32, 48, 64, 128, 256, 512)
+
 
 def _jjmp3_web_exe() -> str:
     exe = shutil.which("jjmp3-web")
@@ -20,20 +22,43 @@ def _jjmp3_web_exe() -> str:
     return "jjmp3-web"
 
 
-def _icon_asset() -> tuple[str, bytes] | None:
-    for name in ("jjmp3.png", "jjmp3.svg"):
-        try:
-            ref = files("mp3dl") / "data" / "icons" / name
-            if ref.is_file():
-                return name, ref.read_bytes()
-        except (FileNotFoundError, ModuleNotFoundError, TypeError, OSError):
-            continue
-    fallback = Path(__file__).resolve().parent / "data" / "icons"
-    for name in ("jjmp3.png", "jjmp3.svg"):
-        path = fallback / name
-        if path.is_file():
-            return name, path.read_bytes()
+def _read_icon(name: str) -> bytes | None:
+    try:
+        ref = files("mp3dl") / "data" / "icons" / name
+        if ref.is_file():
+            return ref.read_bytes()
+    except (FileNotFoundError, ModuleNotFoundError, TypeError, OSError):
+        pass
+    path = Path(__file__).resolve().parent / "data" / "icons" / name
+    if path.is_file():
+        return path.read_bytes()
     return None
+
+
+def _icon_assets() -> dict[str, bytes]:
+    assets: dict[str, bytes] = {}
+    for name in ("jjmp3.png", "jjmp3.ico", "jjmp3.svg", *(f"jjmp3-{s}.png" for s in _ICON_SIZES)):
+        data = _read_icon(name)
+        if data:
+            assets[name] = data
+    return assets
+
+
+def _install_linux_icons(assets: dict[str, bytes]) -> None:
+    base = Path.home() / ".local" / "share" / "icons" / "hicolor"
+    for size in _ICON_SIZES:
+        key = f"jjmp3-{size}.png"
+        data = assets.get(key) or (assets.get("jjmp3.png") if size == 256 else None)
+        if not data:
+            continue
+        dest_dir = base / f"{size}x{size}" / "apps"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / "jjmp3.png").write_bytes(data)
+    svg = assets.get("jjmp3.svg")
+    if svg:
+        dest_dir = base / "scalable" / "apps"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / "jjmp3.svg").write_bytes(svg)
 
 
 def install_linux() -> Path:
@@ -41,15 +66,10 @@ def install_linux() -> Path:
     apps.mkdir(parents=True, exist_ok=True)
     dest = apps / "jjmp3-web.desktop"
     exe = _jjmp3_web_exe()
+    assets = _icon_assets()
     icon_line = "Icon=multimedia-player"
-    icon = _icon_asset()
-    if icon:
-        name, data = icon
-        ext = Path(name).suffix.lower()
-        size_dir = "scalable" if ext == ".svg" else "256x256"
-        icons_dir = Path.home() / ".local" / "share" / "icons" / "hicolor" / size_dir / "apps"
-        icons_dir.mkdir(parents=True, exist_ok=True)
-        (icons_dir / f"jjmp3{ext}").write_bytes(data)
+    if assets:
+        _install_linux_icons(assets)
         icon_line = "Icon=jjmp3"
 
     content = textwrap.dedent(
@@ -81,6 +101,14 @@ def _try_update_desktop_database() -> None:
             check=False,
             capture_output=True,
         )
+    if shutil.which("gtk-update-icon-cache"):
+        icons = Path.home() / ".local" / "share" / "icons" / "hicolor"
+        if icons.is_dir():
+            subprocess.run(
+                ["gtk-update-icon-cache", "-f", "-t", str(icons)],
+                check=False,
+                capture_output=True,
+            )
 
 
 def install_macos() -> Path:
@@ -104,13 +132,17 @@ def install_macos() -> Path:
     )
     launcher.chmod(0o755)
 
-    icon = _icon_asset()
-    if icon:
-        name, data = icon
-        (resources / name).write_bytes(data)
+    assets = _icon_assets()
+    icon_file_key = ""
+    png = assets.get("jjmp3.png") or assets.get("jjmp3-512.png") or assets.get("jjmp3-256.png")
+    if png:
+        (resources / "jjmp3.png").write_bytes(png)
+        icon_file_key = """
+            <key>CFBundleIconFile</key>
+            <string>jjmp3</string>"""
 
     plist = textwrap.dedent(
-        """\
+        f"""\
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -130,7 +162,7 @@ def install_macos() -> Path:
             <key>LSApplicationCategoryType</key>
             <string>public.app-category.music</string>
             <key>NSHighResolutionCapable</key>
-            <true/>
+            <true/>{icon_file_key}
         </dict>
         </plist>
         """
@@ -150,6 +182,16 @@ def install_windows() -> Path:
     start_menu.mkdir(parents=True, exist_ok=True)
     shortcut = start_menu / "JJMP3.lnk"
     exe = _jjmp3_web_exe()
+
+    icon_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "JJMP3"
+    icon_dir.mkdir(parents=True, exist_ok=True)
+    icon_path = icon_dir / "jjmp3.ico"
+    assets = _icon_assets()
+    ico = assets.get("jjmp3.ico")
+    if ico:
+        icon_path.write_bytes(ico)
+    icon_arg = f'$Shortcut.IconLocation = "{icon_path},0"' if ico else ""
+
     ps = textwrap.dedent(
         f"""
         $WshShell = New-Object -ComObject WScript.Shell
@@ -157,6 +199,7 @@ def install_windows() -> Path:
         $Shortcut.TargetPath = "{exe}"
         $Shortcut.WorkingDirectory = "{Path.home()}"
         $Shortcut.Description = "JJMP3 local music player"
+        {icon_arg}
         $Shortcut.Save()
         """
     )
@@ -171,19 +214,11 @@ def install_windows() -> Path:
 def uninstall_linux() -> None:
     path = Path.home() / ".local" / "share" / "applications" / "jjmp3-web.desktop"
     path.unlink(missing_ok=True)
-    for size_dir in ("256x256", "scalable"):
-        for ext in (".png", ".svg"):
-            icon = (
-                Path.home()
-                / ".local"
-                / "share"
-                / "icons"
-                / "hicolor"
-                / size_dir
-                / "apps"
-                / f"jjmp3{ext}"
-            )
-            icon.unlink(missing_ok=True)
+    base = Path.home() / ".local" / "share" / "icons" / "hicolor"
+    for size in _ICON_SIZES:
+        (base / f"{size}x{size}" / "apps" / "jjmp3.png").unlink(missing_ok=True)
+    for ext in (".png", ".svg"):
+        (base / "scalable" / "apps" / f"jjmp3{ext}").unlink(missing_ok=True)
     _try_update_desktop_database()
 
 
@@ -191,7 +226,7 @@ def uninstall_macos() -> None:
     shutil.rmtree(Path.home() / "Applications" / "JJMP3.app", ignore_errors=True)
 
 
-def uninstall_windows() -> None:
+def uninstall_windows() -> Path:
     path = (
         Path(os.environ.get("APPDATA", ""))
         / "Microsoft"
@@ -201,6 +236,9 @@ def uninstall_windows() -> None:
         / "JJMP3.lnk"
     )
     path.unlink(missing_ok=True)
+    icon_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "JJMP3"
+    (icon_dir / "jjmp3.ico").unlink(missing_ok=True)
+    return path
 
 
 def install_launchers() -> Path | None:

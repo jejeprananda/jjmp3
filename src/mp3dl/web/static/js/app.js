@@ -645,6 +645,7 @@ async function runSearch(e) {
 async function renderSettings() {
   await refreshSettings();
   els.settingsPanel.classList.remove("hidden");
+  const version = state.settings.version || "—";
   els.settingsPanel.innerHTML = `
     <div class="field">
       <label for="setting-dir">Download folder</label>
@@ -653,6 +654,20 @@ async function renderSettings() {
     </div>
     <div class="editor-toolbar">
       <button type="button" class="btn primary" id="btn-save-settings">Apply</button>
+    </div>
+    <div class="settings-section">
+      <div class="section-label">Updates</div>
+      <div class="update-card panel inset">
+        <div class="update-row">
+          <span class="field-hint">Installed version</span>
+          <span class="mono" id="setting-version">${escapeHtml(version)}</span>
+        </div>
+        <div id="update-status" class="update-status" hidden></div>
+        <div class="editor-toolbar">
+          <button type="button" class="btn secondary" id="btn-check-update">Check for updates</button>
+          <button type="button" class="btn primary hidden" id="btn-install-update">Install update</button>
+        </div>
+      </div>
     </div>
   `;
   document.getElementById("btn-save-settings").onclick = async () => {
@@ -667,6 +682,72 @@ async function renderSettings() {
       els.pathChip.title = state.settings.download_dir;
     } catch (err) {
       ui.showToast(String(err.message || err));
+    }
+  };
+
+  const statusEl = document.getElementById("update-status");
+  const installBtn = document.getElementById("btn-install-update");
+  const checkBtn = document.getElementById("btn-check-update");
+
+  function showUpdateStatus(info) {
+    statusEl.hidden = false;
+    if (info.error) {
+      statusEl.innerHTML = `<p class="field-error">${escapeHtml(info.error)}</p>`;
+      installBtn.classList.add("hidden");
+      return;
+    }
+    if (info.update_available) {
+      statusEl.innerHTML = `<p class="update-available">Update available: <strong>${escapeHtml(info.local_version)}</strong> → <strong>${escapeHtml(info.remote_version)}</strong></p>`;
+      installBtn.classList.remove("hidden");
+      return;
+    }
+    statusEl.innerHTML = `<p class="field-hint">You are on the latest version (${escapeHtml(info.local_version)}).</p>`;
+    installBtn.classList.add("hidden");
+  }
+
+  checkBtn.onclick = async () => {
+    checkBtn.disabled = true;
+    checkBtn.textContent = "Checking…";
+    try {
+      const info = await api.checkUpdate();
+      showUpdateStatus(info);
+      if (info.remote_version) {
+        document.getElementById("setting-version").textContent = info.local_version;
+      }
+    } catch (err) {
+      showUpdateStatus({ error: String(err.message || err) });
+    } finally {
+      checkBtn.disabled = false;
+      checkBtn.textContent = "Check for updates";
+    }
+  };
+
+  installBtn.onclick = async () => {
+    installBtn.disabled = true;
+    checkBtn.disabled = true;
+    installBtn.textContent = "Installing…";
+    try {
+      const result = await api.installUpdate();
+      showUpdateStatus({
+        ...result,
+        update_available: false,
+        error: null,
+      });
+      if (result.updated) {
+        statusEl.innerHTML = `<p class="update-available">${escapeHtml(result.message || "Update installed")}</p>`;
+        installBtn.classList.add("hidden");
+        if (result.remote_version) {
+          document.getElementById("setting-version").textContent = result.remote_version;
+          state.settings.version = result.remote_version;
+        }
+        ui.showToast("Update installed — restart JJMP3");
+      }
+    } catch (err) {
+      showUpdateStatus({ error: String(err.message || err) });
+    } finally {
+      installBtn.disabled = false;
+      checkBtn.disabled = false;
+      installBtn.textContent = "Install update";
     }
   };
 }

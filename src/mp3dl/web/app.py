@@ -16,6 +16,7 @@ from mp3dl.web.api.lifecycle import router as lifecycle_router
 from mp3dl.web.api.playlists import router as playlists_router
 from mp3dl.web.api.search import router as search_router
 from mp3dl.web.api.settings import router as settings_router
+from mp3dl.web.api.update import router as update_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(library_router)
     app.include_router(playlists_router)
     app.include_router(settings_router)
+    app.include_router(update_router)
     app.include_router(lifecycle_router)
 
     if STATIC_DIR.is_dir():

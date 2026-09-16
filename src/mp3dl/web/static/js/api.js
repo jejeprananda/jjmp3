@@ -42,6 +42,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ download_dir }),
     }),
+  checkUpdate: () => request("/api/update/check"),
+  installUpdate: () => request("/api/update/install", { method: "POST" }),
   playlists: () => request("/api/playlists"),
   playlistDocument: () => request("/api/playlists/document"),
   savePlaylistDocument: (doc) =>

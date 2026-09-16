@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from mp3dl.config import get_download_dir, get_web_port, set_download_dir
+from mp3dl.update import get_local_version
 from mp3dl.web import playlists_store
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -22,6 +23,7 @@ def get_settings():
     return {
         "download_dir": str(root),
         "web_port": get_web_port(),
+        "version": get_local_version(),
     }
 
 
@@ -38,4 +40,5 @@ def update_settings(body: SettingsUpdate):
     return {
         "download_dir": str(resolved),
         "web_port": get_web_port(),
+        "version": get_local_version(),
     }

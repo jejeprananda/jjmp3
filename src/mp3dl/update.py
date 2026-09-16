@@ -84,6 +84,62 @@ def _checklist(steps: list[tuple[str, str]]) -> Panel:
     return Panel(table, title="[bold]Update[/]", border_style="magenta", padding=(0, 1))
 
 
+def check_update() -> dict:
+    """Return local/remote version info for API and UI."""
+    local = get_local_version()
+    try:
+        remote = get_remote_version()
+    except RuntimeError as exc:
+        return {
+            "local_version": local,
+            "remote_version": None,
+            "update_available": False,
+            "error": str(exc),
+        }
+    return {
+        "local_version": local,
+        "remote_version": remote,
+        "update_available": is_newer(remote, local),
+        "error": None,
+    }
+
+
+def install_update() -> dict:
+    """Install latest release from GitHub via pipx. Returns result dict."""
+    status = check_update()
+    if status.get("error"):
+        return {**status, "ok": False, "updated": False}
+    if not status["update_available"]:
+        return {
+            **status,
+            "ok": True,
+            "updated": False,
+            "message": "Already up to date",
+        }
+    if shutil.which("pipx") is None:
+        return {
+            **status,
+            "ok": False,
+            "updated": False,
+            "error": f"pipx not found. Manual: pipx install --force git+{REPO_GIT}",
+        }
+    proc = subprocess.run(
+        ["pipx", "install", "--force", f"git+{REPO_GIT}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "pipx failed").strip()
+        return {**status, "ok": False, "updated": False, "error": err}
+    return {
+        **check_update(),
+        "ok": True,
+        "updated": True,
+        "message": "Update installed — restart JJMP3 to use the new version",
+    }
+
+
 def run_update() -> bool:
     """Check GitHub for a newer version and install via pipx. Returns True if updated."""
     local = get_local_version()
@@ -124,30 +180,15 @@ def run_update() -> bool:
         steps[2] = ("active", "Install update via pipx…")
         live.update(_checklist(steps))
 
-        if shutil.which("pipx") is None:
-            steps[2] = ("fail", "pipx tidak ditemukan")
-            live.update(_checklist(steps))
-            error_panel(
-                "pipx tidak ada di PATH.\n"
-                f"Update manual: [cyan]pipx install --force git+{REPO_GIT}[/]",
-                title="Update gagal",
-            )
-            return False
-
-        proc = subprocess.run(
-            ["pipx", "install", "--force", f"git+{REPO_GIT}"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.returncode != 0:
-            err = (proc.stderr or proc.stdout or "pipx gagal").strip()
+        result = install_update()
+        if not result.get("ok"):
+            err = result.get("error") or "Install update gagal"
             steps[2] = ("fail", "Install update gagal")
             live.update(_checklist(steps))
             error_panel(err, title="Update gagal")
             return False
 
-        steps[2] = ("done", f"Terpasang {remote}")
+        steps[2] = ("done", f"Terpasang {result.get('remote_version', remote)}")
         steps[3] = ("done", "Selesai — jalankan ulang jjmp3")
         live.update(_checklist(steps))
 
